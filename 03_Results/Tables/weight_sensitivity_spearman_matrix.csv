@@ -1,0 +1,10 @@
+﻿"scenario_1","scenario_2","rho_spearman"
+"reference","reference",1
+"development","reference",0.888198250216825
+"conservation","reference",0.886452786909596
+"reference","development",0.888198250216825
+"development","development",1
+"conservation","development",0.64181091366601
+"reference","conservation",0.886452786909596
+"development","conservation",0.64181091366601
+"conservation","conservation",1
