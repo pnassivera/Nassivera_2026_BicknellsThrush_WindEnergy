@@ -16,4 +16,4 @@ Pierre Nassivera¹\*, Francis Lessard¹, Hugues Dorion², Jérôme Lemaître³, 
 
 ## Current status
 
-Submitted to the Journal of Applied Ecology on May 22, 2026.
+Submitted to Biological Conservation on June 02, 2026.
