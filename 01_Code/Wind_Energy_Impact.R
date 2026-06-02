@@ -77,8 +77,8 @@ if (!dir.exists(dir_data)) {
 
 gdb_path <- file.path(
   root_dir,
-  "00_Géodatabase_GRBI",
-  "GRBI_Projet_Thèse.gdb"
+  "00_Geodatabase",
+  "Nassivera_et_al_2026.gdb"
 )
 
 if (!dir.exists(gdb_path)) {
