@@ -50,7 +50,7 @@ library(htmlwidgets)
 
 # ---- 1) PATHS & SOME UTILITIES -----------------------------------------------
 
-root_dir <- "C:/Users/Dell/Desktop/Bicknells_Thrush/Nassivera et al. 2026"
+root_dir <- "C:/Users/Dell/Desktop/Nassivera et al. 2026"
 
 dir_data    <- file.path(root_dir, "02_Data")
 dir_results <- file.path(root_dir, "03_Results")
