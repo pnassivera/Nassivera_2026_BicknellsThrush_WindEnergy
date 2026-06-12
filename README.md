@@ -16,4 +16,4 @@ Pierre Nassivera¹\*, Francis Lessard¹, Hugues Dorion², Jérôme Lemaître³, 
 
 ## Current status
 
-Submitted to Biological Conservation on June 02, 2026.
+Under review in Biological Conservation from June, 2026.
