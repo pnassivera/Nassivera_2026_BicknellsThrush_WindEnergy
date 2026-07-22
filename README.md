@@ -17,7 +17,3 @@ Pierre Nassivera¹\*, Francis Lessard¹, Hugues Dorion², Jérôme Lemaître³, 
 ## Current status
 
 Under review in Biological Conservation from June, 2026.
-
-## TO DO:
-
-Check that the code is running properly with the gdb added.
