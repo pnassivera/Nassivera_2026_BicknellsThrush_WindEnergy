@@ -16,7 +16,7 @@
 # - constraint-space modelling and spatial budget selection
 # - iterative development scenarios and their landscape-metric impacts
 #
-# Last update: 2026-05-29
+# Last update: 2026-08-04
 ################################################################################
 
 # ---- 0) LIBRARIES ------------------------------------------------------------
@@ -27,6 +27,8 @@ library(terra)
 library(gstat)
 library(sp)
 library(landscapemetrics)
+library(spdep)
+library(ncf)
 
 library(dplyr)
 library(tidyr)
@@ -2346,7 +2348,7 @@ make_forest_plot <- function(df_plot, plot_title = NULL, reordered = TRUE,
   return(p)
 }
 
-# 8.4 Exclude non-exploitable wind ---------------------------------------------
+# 8.4 Exclude non-exploitable wind & test wind-speed for spatial autocorrelation  ---------------------------------------------
 # Keep full habitat information over the AOI for habitat-priority calculations.
 # Build the wind-eligible domain separately, and apply it only after all
 # habitat-priority surfaces have been computed.
@@ -2365,6 +2367,353 @@ r_wind_full <- r_wind
 # Wind-masked version used only where the admissible development domain is required
 r_wind_elig <- terra::mask(r_wind_full, eligible_wind)
 names(r_wind_elig) <- "wind_150m_eligible"
+
+# Test wind-speed for spatial autocorrelation
+r_wind_native <- terra::rast(
+  file.path(
+    dir_data,
+    "seigneurie_de_beaupre_epsg4326_polygon_hull_wind-speed_150m.tif"
+  )
+)
+
+r_wind_native
+terra::res(r_wind_native)
+terra::crs(r_wind_native)
+
+r_wind_native_m <- terra::project(r_wind_native, terra::crs(r_hab))
+
+terra::res(r_wind_native_m)
+
+# Load the polygon used to extract the original wind raster
+aoi_wgs84 <- sf::st_read(
+  file.path(
+    dir_data,
+    "Seigneurie_de_Beaupre_EPSG4326_polygon_hull.shp"
+  ),
+  quiet = TRUE
+)
+
+# Compare raster and polygon extents
+terra::ext(r_wind_native)
+terra::ext(vect(aoi_wgs84))
+
+# Quick visual check
+plot(r_wind_native)
+plot(vect(aoi_wgs84), add = TRUE, border = "red", lwd = 2)
+
+# Restrict the native raster to the study polygon
+r_wind_native <- terra::mask(
+  terra::crop(r_wind_native, vect(aoi_wgs84)),
+  vect(aoi_wgs84)
+)
+
+eligible_wind_native <- terra::ifel(
+  is.na(r_wind_native),
+  NA,
+  terra::ifel(r_wind_native >= W_min, 1, NA)
+)
+
+r_wind_native <- terra::mask(r_wind_native, eligible_wind_native)
+
+names(r_wind_native) <- "wind_150m_native_eligible"
+
+plot(r_wind_native)
+plot(vect(aoi_wgs84), add = TRUE, border = "red", lwd = 2)
+
+terra::res(r_wind_native)
+terra::global(!is.na(r_wind_native), "sum")
+plot(r_wind_native)
+
+# Extract all raster values and identify eligible cells
+wind_values_all <- terra::values(
+  r_wind_native,
+  mat = FALSE
+)
+
+valid_cells <- which(
+  is.finite(wind_values_all) &
+    !is.na(wind_values_all)
+)
+
+wind_vals <- wind_values_all[valid_cells]
+
+if (!length(valid_cells)) {
+  stop("No eligible wind cells were found in r_wind_native.")
+}
+
+# Global Moran's I
+
+# Build Queen adjacency directly from the raster grid.
+# directions = 8 includes horizontal, vertical, and diagonal neighbours.
+adj_native <- terra::adjacent(
+  r_wind_native,
+  cells      = valid_cells,
+  directions = 8,
+  pairs      = TRUE,
+  include    = FALSE
+)
+
+# Retain only links for which both cells belong to the eligible domain
+adj_native <- adj_native[
+  adj_native[, 1] %in% valid_cells &
+    adj_native[, 2] %in% valid_cells,
+  ,
+  drop = FALSE
+]
+
+if (!nrow(adj_native)) {
+  stop("No adjacency links were found among eligible native wind cells.")
+}
+
+# Convert original raster cell numbers to consecutive observation indices
+# required by spdep
+cell_index_native <- setNames(
+  seq_along(valid_cells),
+  as.character(valid_cells)
+)
+
+from_native <- unname(
+  cell_index_native[as.character(adj_native[, 1])]
+)
+
+to_native <- unname(
+  cell_index_native[as.character(adj_native[, 2])]
+)
+
+# Remove any unresolved indices
+ok_links_native <- is.finite(from_native) &
+  !is.na(from_native) &
+  is.finite(to_native) &
+  !is.na(to_native)
+
+from_native <- as.integer(from_native[ok_links_native])
+to_native   <- as.integer(to_native[ok_links_native])
+
+# Build the neighbour list required by spdep
+nb_native <- vector(
+  mode   = "list",
+  length = length(valid_cells)
+)
+
+for (i in seq_along(nb_native)) {
+  
+  neigh_i <- unique(
+    to_native[from_native == i]
+  )
+  
+  # In spdep, an observation without neighbours is represented by 0L
+  nb_native[[i]] <- if (length(neigh_i) == 0) {
+    0L
+  } else {
+    as.integer(neigh_i)
+  }
+}
+
+# Add the attributes required for an spdep nb object
+class(nb_native) <- "nb"
+
+attr(nb_native, "region.id") <- as.character(
+  seq_along(valid_cells)
+)
+
+attr(nb_native, "call") <- match.call()
+attr(nb_native, "type") <- "queen"
+attr(nb_native, "sym")  <- TRUE
+
+# Check neighbourhood structure
+neighbor_count_native <- spdep::card(
+  nb_native
+)
+
+summary(
+  neighbor_count_native
+)
+
+n_isolated_native <- sum(
+  neighbor_count_native == 0
+)
+
+cat(
+  "Eligible native cells:",
+  length(valid_cells),
+  "\n"
+)
+
+cat(
+  "Eligible cells without an eligible neighbour:",
+  n_isolated_native,
+  "\n"
+)
+
+# Create row-standardized spatial weights
+listw_native <- spdep::nb2listw(
+  neighbours  = nb_native,
+  style       = "W",
+  zero.policy = TRUE
+)
+
+# Analytical Global Moran's I test
+moran_native <- spdep::moran.test(
+  x             = wind_vals,
+  listw         = listw_native,
+  alternative   = "greater",
+  randomisation = TRUE,
+  zero.policy   = TRUE
+)
+
+print(
+  moran_native
+)
+
+# Monte Carlo permutation test
+set.seed(123)
+
+moran_native_mc <- spdep::moran.mc(
+  x           = wind_vals,
+  listw       = listw_native,
+  nsim        = 999,
+  alternative = "greater",
+  zero.policy = TRUE
+)
+
+print(
+  moran_native_mc
+)
+
+# Spatial continuity of the 10-m wind-eligible domain
+
+wind_elig_values_10m <- terra::values(
+  r_wind_elig,
+  mat = FALSE
+)
+
+eligible_cells_10m <- which(
+  is.finite(wind_elig_values_10m) &
+    !is.na(wind_elig_values_10m)
+)
+
+# Queen adjacency on the exact 10-m allocation grid
+adj_10m <- terra::adjacent(
+  r_wind_elig,
+  cells      = eligible_cells_10m,
+  directions = 8,
+  pairs      = TRUE,
+  include    = FALSE
+)
+
+# Keep only links between eligible cells
+adj_10m <- adj_10m[
+  adj_10m[, 1] %in% eligible_cells_10m &
+    adj_10m[, 2] %in% eligible_cells_10m,
+  ,
+  drop = FALSE
+]
+
+# Count eligible neighbours for each eligible 10-m cell
+neighbor_count_10m <- tabulate(
+  match(adj_10m[, 1], eligible_cells_10m),
+  nbins = length(eligible_cells_10m)
+)
+
+summary(neighbor_count_10m)
+table(neighbor_count_10m)
+
+
+wind_values_10m <- terra::values(
+  r_wind_elig,
+  mat = FALSE,
+  na.rm = TRUE
+)
+
+W_best_10m <- as.numeric(
+  stats::quantile(
+    wind_values_10m,
+    probs = wind_top_q,
+    na.rm = TRUE
+  )
+)
+
+wind_connectivity_10m <- data.frame(
+  cell        = eligible_cells_10m,
+  wind_speed  = wind_elig_values_10m[eligible_cells_10m],
+  n_neighbors = neighbor_count_10m
+)
+
+wind_connectivity_10m$top_wind <- (
+  wind_connectivity_10m$wind_speed >= W_best_10m
+)
+
+top_wind_neighbor_summary <- wind_connectivity_10m |>
+  dplyr::filter(top_wind) |>
+  dplyr::count(n_neighbors, name = "n_cells") |>
+  dplyr::mutate(
+    pct_top_wind_cells = 100 * n_cells / sum(n_cells)
+  )
+
+print(top_wind_neighbor_summary)
+
+# Top wind cells only
+top_wind <- terra::ifel(
+  r_wind_elig >= W_best_10m,
+  1,
+  NA
+)
+
+plot(top_wind)
+
+# Identify contiguous patches (Queen neighbourhood)
+top_wind_patch <- terra::patches(
+  top_wind,
+  directions = 8
+)
+
+plot(top_wind_patch)
+
+# Calculate the surface
+patch_freq <- terra::freq(
+  top_wind_patch
+)
+
+patch_area <- data.frame(
+  patch = patch_freq$value,
+  n_cells = patch_freq$count
+)
+
+patch_area$area_m2 <- patch_area$n_cells * 100
+patch_area$area_ha <- patch_area$area_m2 / 10000
+
+patch_area <- patch_area[
+  order(-patch_area$area_ha),
+]
+
+summary(
+  patch_area$area_ha
+)
+
+nrow(patch_area)
+
+head(
+  patch_area,
+  20
+)
+
+pad_area_ha <- 1.2
+
+pad_patch_summary <- patch_area |>
+  dplyr::mutate(
+    can_fit_one_pad = area_ha >= pad_area_ha
+  ) |>
+  dplyr::summarise(
+    n_patches = dplyr::n(),
+    n_below_pad = sum(!can_fit_one_pad),
+    pct_patches_below_pad = 100 * mean(!can_fit_one_pad),
+    area_below_pad_ha = sum(area_ha[!can_fit_one_pad]),
+    pct_total_area_below_pad = 100 * area_below_pad_ha / sum(area_ha),
+    n_at_least_one_pad = sum(can_fit_one_pad),
+    pct_patches_at_least_one_pad = 100 * mean(can_fit_one_pad)
+  )
+
+print(pad_patch_summary)
 
 # 8.5 z(x) = (habitat priority, wind, habitat aggregation) ---------------------
 
