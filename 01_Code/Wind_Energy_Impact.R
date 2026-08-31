@@ -1,7 +1,8 @@
 ################################################################################
 # Wind energy development alters breeding habitat of the Bicknell’s Thrush,
-# a threatened range-restricted boreal songbird
-#
+# a threatened range-restricted boreal songbird: evidence for opportunities 
+# in biodiversity-informed spatial planning
+# 
 # Nassivera et al. (2026)
 #
 # Objective: fully reproducible workflow for the paper titled above.
@@ -16,7 +17,7 @@
 # - constraint-space modelling and spatial budget selection
 # - iterative development scenarios and their landscape-metric impacts
 #
-# Last update: 2026-08-04
+# Last update: 2026-08-21
 ################################################################################
 
 # ---- 0) LIBRARIES ------------------------------------------------------------
