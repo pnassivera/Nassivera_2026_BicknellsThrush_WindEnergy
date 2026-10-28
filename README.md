@@ -2,7 +2,7 @@
 
 This folder contains all data, scripts, figures, and results required to reproduce the analyses presented in the following article:
 
-**Wind energy development alters breeding habitat of the Bicknell’s Thrush, a threatened range-restricted boreal songbird**
+**Wind energy development alters breeding habitat of the Bicknell’s Thrush, a threatened range-restricted boreal songbird: evidence for opportunities in biodiversity-informed spatial planning**
 
 Pierre Nassivera¹\*, Francis Lessard¹, Hugues Dorion², Jérôme Lemaître³, Yves Aubry⁴, Junior A. Tremblay¹˒⁵
 
@@ -16,4 +16,4 @@ Pierre Nassivera¹\*, Francis Lessard¹, Hugues Dorion², Jérôme Lemaître³, 
 
 ## Current status
 
-Under review in Biological Conservation from June, 2026.
+Accepted in *Biological Conservation* on 22 June 2026.
