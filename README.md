@@ -1,4 +1,4 @@
-# Nassivera et al. (2026)
+# Nassivera *et al.* (2027)
 
 This folder contains all data, scripts, figures, and results required to reproduce the analyses presented in the following article:
 
@@ -14,6 +14,6 @@ Pierre Nassivera¹\*, Francis Lessard¹, Hugues Dorion², Jérôme Lemaître³, 
 
 \*Corresponding author: [pierre.nassivera.1\@ulaval.ca](mailto:pierre.nassivera.1@ulaval.ca)
 
-## Current status
+## Publication
 
-Accepted in *Biological Conservation* on 22 June 2026.
+Published in *Biological Conservation*, Volume 325 (2027), Article 112179. [https://doi.org/10.1016/j.biocon.2026.112179](https://doi.org/10.1016/j.biocon.2026.112179)
